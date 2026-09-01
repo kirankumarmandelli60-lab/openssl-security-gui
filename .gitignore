@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Cryptographic/generated data
+keys/
+encrypted/
+decrypted/
+signatures/
+
+# Private keys and secrets
+*.key
+*.pem
+*.bin
+
+# Logs
+*.log
