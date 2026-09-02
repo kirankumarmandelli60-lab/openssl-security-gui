@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox, filedialog
+
 from certificate_utils import (
     view_certificate,
     generate_self_signed_certificate
@@ -13,7 +14,16 @@ from crypto_utils import (
     sign_file,
     verify_signature
 )
+from tkinter import simpledialog
 
+from threat_intel.ioc_utils import analyze_ioc
+from threat_intel.risk_scoring import calculate_risk_score
+from threat_intel.threat_report import generate_threat_report
+
+from threat_intel.osint_utils import (
+    generate_osint_checklist,
+    format_osint_checklist
+)
 def log_output(title, content):
     result_box.delete("1.0", tk.END)
 
@@ -253,7 +263,155 @@ def view_selected_certificate():
             "Error",
             str(e)
         )
+def analyze_selected_ioc():
+    try:
+        ioc = simpledialog.askstring(
+            "Threat Intelligence",
+            "Enter an IOC\n\n"
+            "Examples:\n"
+            "IPv4: 8.8.8.8\n"
+            "Domain: example.com\n"
+            "Email: analyst@example.com\n"
+            "Hash: SHA256 value"
+        )
 
+        if not ioc:
+            return
+
+        ioc_analysis = analyze_ioc(ioc)
+
+        # Analyst evidence window
+        evidence_window = tk.Toplevel(root)
+        evidence_window.title("Analyst Evidence Assessment")
+        evidence_window.geometry("450x500")
+        evidence_window.configure(bg="#1e1e1e")
+        evidence_window.resizable(False, False)
+
+        tk.Label(
+            evidence_window,
+            text=f"IOC: {ioc_analysis['normalized']}",
+            font=("Segoe UI", 14, "bold"),
+            bg="#1e1e1e",
+            fg="#00d4ff"
+        ).pack(pady=15)
+
+        tk.Label(
+            evidence_window,
+            text=f"Type: {ioc_analysis['type']}",
+            font=("Segoe UI", 11),
+            bg="#1e1e1e",
+            fg="white"
+        ).pack(pady=5)
+
+        tk.Label(
+            evidence_window,
+            text="Select observed intelligence evidence:",
+            font=("Segoe UI", 11, "bold"),
+            bg="#1e1e1e",
+            fg="white"
+        ).pack(pady=15)
+
+        known_malicious = tk.BooleanVar()
+        blacklisted = tk.BooleanVar()
+        suspicious = tk.BooleanVar()
+        darkweb_reference = tk.BooleanVar()
+        breach_reference = tk.BooleanVar()
+
+        evidence_frame = tk.Frame(
+            evidence_window,
+            bg="#1e1e1e"
+        )
+
+        evidence_frame.pack(
+            padx=40,
+            fill="x"
+        )
+
+        evidence_options = [
+            ("Known malicious", known_malicious),
+            ("Blacklist match", blacklisted),
+            ("Suspicious behavior", suspicious),
+            ("Darkweb reference", darkweb_reference),
+            ("Breach reference", breach_reference),
+        ]
+
+        for text, variable in evidence_options:
+            tk.Checkbutton(
+                evidence_frame,
+                text=text,
+                variable=variable,
+                bg="#1e1e1e",
+                fg="white",
+                selectcolor="#252526",
+                activebackground="#1e1e1e",
+                activeforeground="white",
+                font=("Segoe UI", 11),
+                anchor="w"
+            ).pack(
+                fill="x",
+                pady=5
+            )
+
+        def generate_assessment():
+
+            indicators = {
+                "known_malicious": known_malicious.get(),
+                "blacklisted": blacklisted.get(),
+                "suspicious": suspicious.get(),
+                "darkweb_reference": darkweb_reference.get(),
+                "breach_reference": breach_reference.get(),
+            }
+
+            risk_analysis = calculate_risk_score(
+                ioc_analysis["type"],
+                indicators
+            )
+
+            osint_checklist = generate_osint_checklist(
+                ioc_analysis
+            )
+
+            osint_report = format_osint_checklist(
+                osint_checklist
+            )
+
+            report = generate_threat_report(
+                ioc_analysis,
+                risk_analysis
+            )
+
+            combined_report= report + "\n\n" + osint_report
+            log_output(
+                "THREAT INTELLIGENCE ANALYSIS",
+                combined_report
+            )
+
+            status.config(
+                text=(
+                    f"Status: IOC Analyzed | "
+                    f"{ioc_analysis['type']} | "
+                    f"{risk_analysis['severity']} | "
+                    f"Score: {risk_analysis['score']}/100"
+                )
+            )
+
+            evidence_window.destroy()
+
+        ttk.Button(
+            evidence_window,
+            text="Generate Threat Assessment",
+            command=generate_assessment
+        ).pack(
+            pady=25,
+            padx=40,
+            fill="x"
+        )
+
+    except Exception as e:
+        messagebox.showerror(
+            "Threat Intelligence Error",
+            str(e)
+        )
 root = tk.Tk()
 
 root.iconbitmap("assets/logo.ico")
@@ -390,6 +548,25 @@ ttk.Button(
     text="View Certificate",
     command=view_selected_certificate
 ).pack(fill="x", padx=10, pady=5)
+
+ttk.Separator(
+    sidebar,
+    orient="horizontal"
+).pack(
+    fill="x",
+    padx=10,
+    pady=10
+)
+
+ttk.Button(
+    sidebar,
+    text="Analyze IOC",
+    command=analyze_selected_ioc
+).pack(
+    fill="x",
+    padx=10,
+    pady=5
+)
 
 # ======================
 # STATUS BAR
