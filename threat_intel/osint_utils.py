@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from threat_intel.collectors.dns_collector import collect_dns_records
 
 def generate_osint_checklist(ioc_analysis):
     """
@@ -19,7 +20,7 @@ def generate_osint_checklist(ioc_analysis):
         "checks": []
     }
 
-    if ioc_type == "IPv4":
+    if ioc_type in ("IPv4", "IPv6"):
         checklist["checks"] = [
             "WHOIS / registration information",
             "Reverse DNS",
@@ -135,3 +136,27 @@ def create_investigation_record(ioc_analysis):
         }
 
     return record
+
+def execute_dns_investigation(investigation_record):
+    """
+    Execute DNS investigation for a domain IOC.
+
+    This function updates the existing investigation record
+    with the result produced by the DNS collector.
+    """
+
+    if investigation_record["type"] != "Domain":
+        return investigation_record
+
+    domain = investigation_record["indicator"]
+
+    dns_result = collect_dns_records(domain)
+
+    investigation_record["findings"]["DNS records"] = {
+        "status": dns_result.get("status", "Error"),
+        "result": dns_result.get("records", {}),
+        "source": "Local DNS resolution",
+        "error": dns_result.get("error"),
+    }
+
+    return investigation_record

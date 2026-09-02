@@ -1,4 +1,6 @@
 import tkinter as tk
+import os
+import time
 from tkinter import ttk
 from tkinter import messagebox, filedialog
 
@@ -18,12 +20,17 @@ from tkinter import simpledialog
 
 from threat_intel.ioc_utils import analyze_ioc
 from threat_intel.risk_scoring import calculate_risk_score
-from threat_intel.threat_report import generate_threat_report
+from threat_intel.threat_report import (
+    generate_threat_report,
+    generate_investigation_report,
+    save_threat_report
+)
 
 from threat_intel.osint_utils import (
     generate_osint_checklist,
     format_osint_checklist,
-    create_investigation_record
+    create_investigation_record,
+    execute_dns_investigation
 )
 def log_output(title, content):
     result_box.delete("1.0", tk.END)
@@ -161,8 +168,8 @@ def sign_selected_file():
         )
 
         log_output(
-    "SIGNATURE VERIFICATION",
-    "Result: VALID"
+    "FILE SIGNED",
+    f"Input File:\n{file_path}\n\nSignature File:\n{signature_path}"
 )
 
     except Exception as e:
@@ -371,6 +378,10 @@ def analyze_selected_ioc():
                 ioc_analysis
             )
 
+            investigation_record = execute_dns_investigation(
+                investigation_record
+            )
+
             osint_checklist = generate_osint_checklist(
                 ioc_analysis
             )
@@ -384,10 +395,19 @@ def analyze_selected_ioc():
                 risk_analysis
             )
 
-            combined_report= report + "\n\n" + osint_report
+            investigation_report = generate_investigation_report(
+                ioc_analysis, risk_analysis, investigation_record
+            )
+            combined_report = report + "\n\n" + investigation_report + "\n\n" + osint_report
+            reports_dir = "reports"
+            os.makedirs(reports_dir, exist_ok=True)
+            safe_type = ioc_analysis["type"].lower().replace(" ", "_")
+            report_path = os.path.join(reports_dir, f"investigation_{safe_type}_{int(time.time())}.txt")
+            save_threat_report(combined_report, report_path)
+
             log_output(
                 "THREAT INTELLIGENCE ANALYSIS",
-                combined_report
+                f"{combined_report}\n\nSaved investigation report: {report_path}"
             )
 
             status.config(

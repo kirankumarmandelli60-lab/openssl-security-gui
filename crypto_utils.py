@@ -6,7 +6,14 @@ from cryptography.hazmat.primitives.asymmetric import padding
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-def generate_rsa_keys():
+def generate_rsa_keys(overwrite=False):
+    os.makedirs("keys", exist_ok=True)
+
+    private_key_path = "keys/private_key.pem"
+    public_key_path = "keys/public_key.pem"
+    if not overwrite and (os.path.exists(private_key_path) or os.path.exists(public_key_path)):
+        raise FileExistsError("RSA key files already exist. Back them up or remove them before generating a new key pair.")
+
     private_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048
@@ -14,7 +21,7 @@ def generate_rsa_keys():
 
     public_key = private_key.public_key()
 
-    with open("keys/private_key.pem", "wb") as f:
+    with open(private_key_path, "wb") as f:
         f.write(
             private_key.private_bytes(
                 encoding=serialization.Encoding.PEM,
@@ -23,7 +30,7 @@ def generate_rsa_keys():
             )
         )
 
-    with open("keys/public_key.pem", "wb") as f:
+    with open(public_key_path, "wb") as f:
         f.write(
             public_key.public_bytes(
                 encoding=serialization.Encoding.PEM,
@@ -44,6 +51,9 @@ def generate_file_hash(file_path):
     return digest.finalize().hex()
 
 def encrypt_file(file_path):
+    os.makedirs("encrypted", exist_ok=True)
+    os.makedirs("keys", exist_ok=True)
+
     key = AESGCM.generate_key(bit_length=256)
     aesgcm = AESGCM(key)
 
@@ -71,6 +81,8 @@ def encrypt_file(file_path):
 
     return output_path
 def decrypt_file(file_path):
+    os.makedirs("decrypted", exist_ok=True)
+
     with open("keys/aes_key.bin", "rb") as f:
         key = f.read()
 
@@ -79,6 +91,9 @@ def decrypt_file(file_path):
     with open(file_path, "rb") as f:
         nonce = f.read(12)
         encrypted_data = f.read()
+
+    if len(nonce) != 12 or not encrypted_data:
+        raise ValueError("Invalid encrypted file: missing AES-GCM nonce or ciphertext.")
 
     decrypted_data = aesgcm.decrypt(
         nonce,
@@ -99,6 +114,8 @@ def decrypt_file(file_path):
     return output_path
 
 def sign_file(file_path):
+    os.makedirs("signatures", exist_ok=True)
+
     with open("keys/private_key.pem", "rb") as f:
         private_key = serialization.load_pem_private_key(
             f.read(),

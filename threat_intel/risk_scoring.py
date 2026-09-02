@@ -12,7 +12,7 @@ def calculate_risk_score(ioc_type, indicators=None):
     reasons = []
 
     # IOC type baseline
-    if ioc_type == "IPv4":
+    if ioc_type in ("IPv4", "IPv6"):
         score += 20
         reasons.append("Network indicator identified")
 

@@ -1,4 +1,5 @@
 import re
+import ipaddress
 from urllib.parse import urlparse
 
 
@@ -17,7 +18,17 @@ IOC_TYPES = {
 
 
 def is_ipv4(value):
-    return bool(IOC_TYPES["IPv4"].match(value))
+    try:
+        return isinstance(ipaddress.ip_address(value), ipaddress.IPv4Address)
+    except ValueError:
+        return False
+
+
+def is_ipv6(value):
+    try:
+        return isinstance(ipaddress.ip_address(value), ipaddress.IPv6Address)
+    except ValueError:
+        return False
 
 
 def is_hash(value):
@@ -78,6 +89,9 @@ def identify_ioc(value):
     if is_ipv4(value):
         return "IPv4"
 
+    if is_ipv6(value):
+        return "IPv6"
+
     if is_email(value):
         return "Email"
 
@@ -96,6 +110,8 @@ def normalize_ioc(value):
     """
 
     value = value.strip()
+    # Accept commonly defanged indicators without changing the analyst's intent.
+    value = value.replace("[.]", ".").replace("[:]", ":")
 
     if value.startswith(("http://", "https://")):
         parsed = urlparse(value)
@@ -121,14 +137,15 @@ def analyze_ioc(value):
         "type": ioc_type,
         "confidence": "Low",
         "recommended_checks": [],
+        "validation": "Valid" if ioc_type != "Unknown" else "Unrecognized format",
     }
 
-    if ioc_type == "IPv4":
+    if ioc_type in ("IPv4", "IPv6"):
         analysis["confidence"] = "High"
 
         analysis["recommended_checks"] = [
             "WHOIS / registration information",
-            "Reverse DNS",
+            "Reverse DNS (passive/source-approved where possible)",
             "Passive DNS",
             "IP reputation",
             "Related infrastructure",
