@@ -109,3 +109,29 @@ def format_osint_checklist(checklist):
     lines.append("=" * 60)
 
     return "\n".join(lines)
+
+def create_investigation_record(ioc_analysis):
+    """
+    Create a structured OSINT investigation record.
+
+    This function does not perform network requests.
+    It initializes investigation findings as pending.
+    """
+
+    checklist = generate_osint_checklist(ioc_analysis)
+
+    record = {
+        "indicator": checklist["indicator"],
+        "type": checklist["type"],
+        "generated": checklist["generated"],
+        "findings": {}
+    }
+
+    for check in checklist["checks"]:
+        record["findings"][check] = {
+            "status": "Pending",
+            "result": None,
+            "source": None
+        }
+
+    return record

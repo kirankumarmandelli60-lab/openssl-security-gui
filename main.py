@@ -22,7 +22,8 @@ from threat_intel.threat_report import generate_threat_report
 
 from threat_intel.osint_utils import (
     generate_osint_checklist,
-    format_osint_checklist
+    format_osint_checklist,
+    create_investigation_record
 )
 def log_output(title, content):
     result_box.delete("1.0", tk.END)
@@ -365,6 +366,9 @@ def analyze_selected_ioc():
             risk_analysis = calculate_risk_score(
                 ioc_analysis["type"],
                 indicators
+            )
+            investigation_record = create_investigation_record(
+                ioc_analysis
             )
 
             osint_checklist = generate_osint_checklist(
